@@ -1,0 +1,30 @@
+# R
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+
+# H2O
+h2o_*.out
+h2o_*.err
+
+# Model / output artefacts
+*.RDATA
+model_performance_metrics.csv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# PyCaret artefacts
+logs.log
+catboost_info/
+mlruns/
