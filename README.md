@@ -1,8 +1,13 @@
 # Online Shoppers Purchasing Intention — Classification
 
-Predicting whether an e-commerce session ends in a purchase (`Revenue = 1`) using three classic supervised learners — **Naive Bayes**, **Decision Trees**, and **Logistic Regression** — fitted in R with `h2o`, `rpart`, and `caret`.
+Predicting whether an e-commerce session ends in a purchase (`Revenue = 1`) from web-session behaviour. The same problem is tackled **two ways**:
 
-The project walks the full applied-ML pipeline: cleaning, feature engineering, a stratified train/test split, model fitting with cross-validated hyperparameter tuning, threshold-based evaluation, and a side-by-side ROC comparison. It also includes class-balancing experiments (under/over/SMOTE) and probability re-calibration.
+- 🟦 **R** — a focused deep-dive on three classic learners (**Naive Bayes**, **Decision Trees**, **Logistic Regression**) with manual hyperparameter tuning, class balancing, and probability calibration (`h2o`, `rpart`, `caret`).
+- 🐍 **Python** — a breadth-first **AutoML sweep** across 19 models using **PyCaret**, with an end-to-end preprocessing pipeline (outlier removal, transforms, encoding, multicollinearity filtering).
+
+Both share the **same cleaning and feature-engineering logic**, so they make a clean side-by-side comparison of two common workflows: hand-rolled vs. AutoML.
+
+The project walks the full applied-ML pipeline: cleaning, feature engineering, a stratified train/test split, model fitting with cross-validated tuning, threshold-based evaluation, and model comparison. The R track additionally covers class-balancing experiments (under/over/SMOTE) and probability re-calibration.
 
 ---
 
@@ -49,7 +54,7 @@ The target is moderately imbalanced, which is why evaluation leans on **F1, reca
 
 ---
 
-## Results
+## R track — results
 
 All models evaluated at a fixed **0.5 threshold** on the held-out test set (positive class = `1`).
 
@@ -76,6 +81,38 @@ All models evaluated at a fixed **0.5 threshold** on the held-out test set (posi
 - **Logistic Regression** gives the best test AUC (0.918) and the best precision, making it the strongest overall ranker and the most reliable single model here.
 - **Naive Bayes** has the highest recall (0.832) — useful if the cost of missing a buyer is high — at the expense of precision.
 - The **unpruned `h2o` tree** is a textbook overfitting case: a near-perfect 0.9995 train AUC collapses to 0.739 on test. Pruning the `rpart` tree (`maxdepth = 5`) closes that gap almost entirely (0.862 → 0.861), trading a little training fit for genuine generalization.
+
+---
+
+## Python (PyCaret) — AutoML model sweep
+
+The Python track (`python/main.ipynb`) reuses the same engineered features, then hands a fully configured `setup()` to PyCaret and compares **19 models** on a stratified holdout. Preprocessing inside the pipeline includes iForest outlier removal, robust scaling, Yeo-Johnson transforms, one-hot encoding, and multicollinearity filtering.
+
+![PyCaret leaderboard — holdout AUC](images/pycaret_model_leaderboard.png)
+
+Holdout leaderboard (top of the table, by AUC):
+
+| Model | Accuracy | AUC | Recall | Precision | F1 |
+|-------|:--------:|:---:|:------:|:---------:|:--:|
+| Gradient Boosting | 0.898 | **0.927** | 0.607 | 0.698 | 0.649 |
+| CatBoost | 0.899 | 0.926 | 0.591 | 0.712 | 0.646 |
+| LightGBM | 0.893 | 0.923 | 0.584 | 0.683 | 0.630 |
+| Random Forest | 0.893 | 0.922 | 0.570 | 0.689 | 0.624 |
+| Logistic Regression | 0.890 | 0.912 | 0.598 | 0.665 | 0.630 |
+| Naive Bayes | 0.829 | 0.870 | **0.813** | 0.473 | 0.598 |
+| Decision Tree | 0.857 | 0.730 | 0.546 | 0.543 | 0.544 |
+| Dummy (baseline) | 0.844 | 0.500 | 0.000 | 0.000 | 0.000 |
+
+### Cross-method consistency
+
+The two implementations tell the same story from different angles:
+
+- **Gradient boosting / CatBoost win** the breadth sweep (AUC ≈ 0.927), edging out logistic regression — the gain a richer model buys on this dataset is real but modest (~0.015 AUC).
+- **Logistic Regression** is the best of the "classic" trio in *both* tracks (R test AUC 0.918, PyCaret holdout AUC 0.912) — strong evidence it's a genuinely solid baseline, not a fluke of one split.
+- **Naive Bayes** again posts the **highest recall** (0.81) at low precision in both tracks — same recall-heavy behaviour, independently reproduced.
+- **A single Decision Tree is the weakest** real model in both (AUC ≈ 0.73), which is exactly why the R track pairs it with pruning and the Python track prefers tree *ensembles*.
+
+> The PyCaret `compare_models` leaderboard above uses a holdout evaluation; the `dt` model was additionally validated with 10-fold stratified CV (mean AUC 0.730 ± 0.023), matching the holdout figure closely.
 
 ---
 
@@ -112,11 +149,15 @@ Cross-validated relative error keeps falling as the tree grows to ~5 leaves, whe
 online-shoppers-purchase-prediction/
 ├── README.md
 ├── R/
-│   └── shoppers_classification.R     # full pipeline
+│   └── shoppers_classification.R     # full R pipeline (NB, DT, LR + balancing)
+├── python/
+│   ├── main.ipynb                    # PyCaret AutoML sweep (19 models)
+│   └── requirements.txt
 ├── datasets/
 │   └── Online Shoppers Purchasing Intention dataset.xlsx   # (add this yourself)
 └── images/
     ├── roc_comparison_test.jpeg
+    ├── pycaret_model_leaderboard.png
     ├── nb_roc_train.png   ├── nb_roc_test.png
     ├── dt_h2o_roc_train.png   ├── dt_h2o_roc_test.png
     ├── rpart_roc_train.png    ├── rpart_roc_test.png
@@ -127,6 +168,10 @@ online-shoppers-purchase-prediction/
 
 ## Running it
 
+Place the dataset Excel file in `datasets/` first (see `datasets/README.md`).
+
+### R track
+
 **Requirements:** R ≥ 4.5 and Java 8+ (for `h2o`).
 
 ```r
@@ -136,8 +181,7 @@ install.packages(c(
 ))
 ```
 
-1. Place the dataset Excel file in `datasets/`.
-2. Open `R/shoppers_classification.R` and adjust the parameters at the top if you like:
+Open `R/shoppers_classification.R`, adjust the parameters at the top if you like, then run top to bottom:
 
 ```r
 seed       <- 606      # reproducibility
@@ -146,7 +190,19 @@ metric     <- "F1"     # grid-search selection metric
 folds      <- 5        # CV folds
 ```
 
-3. Run the script top to bottom. `h2o.init()` starts a local cluster; `h2o.shutdown(prompt = FALSE)` releases it at the end.
+`h2o.init()` starts a local cluster; `h2o.shutdown(prompt = FALSE)` releases it at the end.
+
+### Python track
+
+**Requirements:** Python 3.10.
+
+```bash
+cd python
+pip install -r requirements.txt
+jupyter lab            # then open main.ipynb and run all cells
+```
+
+PyCaret's `setup()` handles the split, preprocessing, and stratified 10-fold CV; `compare_models()` produces the leaderboard and `evaluate_model()` opens interactive diagnostics.
 
 ---
 
