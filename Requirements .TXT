@@ -1,0 +1,8 @@
+# Python dependencies for the PyCaret notebook (python/main.ipynb)
+# Tested with Python 3.10
+pandas>=1.5
+numpy>=1.23
+openpyxl>=3.1          # read .xlsx
+pycaret==3.3.2         # AutoML: setup, compare_models, evaluate_model
+scikit-learn>=1.4
+matplotlib<3.8.0       # pinned to match pycaret 3.3.2
